@@ -1,12 +1,12 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MainTabNavigator from "@/navigation/MainTabNavigator";
-import ModalScreen from "@/screens/ModalScreen";
+import CalibrationScreen from "@/screens/CalibrationScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type RootStackParamList = {
   Main: undefined;
-  Modal: undefined;
+  Calibration: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -22,11 +22,12 @@ export default function RootStackNavigator() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
-        name="Modal"
-        component={ModalScreen}
+        name="Calibration"
+        component={CalibrationScreen}
         options={{
-          presentation: "modal",
-          headerTitle: "Modal",
+          presentation: "fullScreenModal",
+          headerShown: false,
+          animation: "slide_from_bottom",
         }}
       />
     </Stack.Navigator>

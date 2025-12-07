@@ -1,252 +1,194 @@
-# Design Guidelines: Color Sync LED Ambilight App
+# Design Guidelines: Ambilight LED Controller
 
 ## Architecture Decisions
 
 ### Authentication
-**No Authentication Required**
-- This is a single-user utility app with local device functionality
-- Data (crop settings, ESP IP configuration) stored locally via AsyncStorage
-- **Include a Settings/Profile screen with:**
-  - User-customizable avatar (1 preset neon/tech-themed avatar)
-  - Display name field
-  - App preferences (theme toggle, LED count settings, UDP port)
+**No Authentication Required** - This is a single-user utility app with local functionality.
+- Include a **Settings screen** with:
+  - User-customizable display name
+  - App preferences (sensitivity, update speed)
+  - No avatar needed (utility-focused)
 
 ### Navigation
-**Stack-Only Navigation**
-- The app has a single primary flow: Camera → Calibration → LED Control
-- No tab bar needed - this is a focused utility
-- Floating action buttons for key controls
+**Tab Navigation (3 tabs):**
+1. **Ana Sayfa** (Home) - Main camera view and color detection
+2. **Cihazlar** (Devices) - Bluetooth LED device management
+3. **Ayarlar** (Settings) - App configuration
 
-**Screen Structure:**
-1. **Main Camera Screen** (root) - Live camera feed with active LED sync
-2. **Calibration Modal** - Overlay for TV corner selection
-3. **Settings Screen** - Pushed from header button
-4. **ESP Configuration Screen** - Network settings for UDP connection
+### Screen Specifications
 
----
-
-## Screen Specifications
-
-### 1. Main Camera Screen
-**Purpose:** Real-time camera capture with LED color synchronization
+#### 1. Ana Sayfa (Home Screen)
+**Purpose:** Real-time camera feed with color detection and LED control
 
 **Layout:**
-- **Header:** Transparent, custom navigation header
-  - Left: Settings icon button
-  - Center: App title "Color Sync"
-  - Right: Info icon (shows connection status)
-- **Main Content:** Full-screen camera preview (not scrollable)
-  - 10x10 grid overlay (subtle, semi-transparent white lines, 0.5 opacity)
-  - Cropped area highlighted with green border (2px solid, when calibration saved)
-  - Floating elements:
-    - Bottom center: Calibration button (pill-shaped, 120px wide, with icon)
-    - Bottom right: Power toggle (circular, 56px diameter) - enables/disables LED sync
-    - Connection status indicator (top right corner, small badge)
-
-**Safe Area Insets:**
-- Top: `insets.top + Spacing.xl` (transparent header)
-- Bottom: `insets.bottom + Spacing.xl`
-- Sides: `Spacing.lg`
+- Header: Transparent with right button (info icon for quick tips)
+- Main content: Full-screen camera preview (non-scrollable)
+- Floating elements:
+  - **Color visualization bar** - Horizontal strip showing detected colors from screen regions (left, top, right, bottom)
+  - **Large circular Start/Stop button** - Center bottom, uses accent color when active
+  - **Status indicator** - Top of screen showing connection status
+- Safe area: 
+  - Top: `headerHeight + Spacing.xl`
+  - Bottom: `tabBarHeight + Spacing.xl + 80` (extra space for floating button)
 
 **Components:**
-- Camera view (expo-camera)
-- Grid overlay (SVG lines)
-- Crop area border (animated border when active)
-- Floating action buttons with drop shadows
+- Camera preview (expo-camera)
+- Color bars (4 colored rectangles showing region colors)
+- Floating action button with pulse animation when active
+- Connection status chip
 
----
-
-### 2. Calibration Modal
-**Purpose:** Allow user to select 4 corners of TV screen within camera view
+#### 2. Cihazlar (Devices Screen)
+**Purpose:** Scan, connect, and manage Bluetooth LED devices
 
 **Layout:**
-- **Header:** Semi-transparent dark overlay bar
-  - Left: "Cancel" text button
-  - Center: "Calibrate TV Area"
-  - Right: "Save" text button (highlighted in accent color)
-- **Main Content:** Camera preview with interactive overlay
-  - 4 draggable corner handles (circular, 44x44px touch targets)
-  - Corner handles connected by animated dashed lines (green when valid, red when invalid)
-  - Semi-transparent blue fill inside selected area (0.2 opacity)
-  - Instruction text at top: "Drag corners to match your TV screen"
-
-**Safe Area Insets:**
-- Full screen with overlay
-- Corner handles must be at least 44px from screen edges
-- Instruction text: `insets.top + Spacing.xl`
-
-**Interaction:**
-- Pan gesture on each corner handle
-- Haptic feedback on drag start/end
-- Visual snap animation when corners align reasonably
-- Invalid shape (crossed lines) shows warning state
-
----
-
-### 3. Settings Screen
-**Purpose:** Configure app preferences and ESP connection
-
-**Layout:**
-- **Header:** Standard navigation header (not transparent)
-  - Left: Back button
-  - Center: "Settings"
-- **Main Content:** Scrollable form
-  - Profile section (avatar, display name)
-  - ESP Configuration section
-    - IP Address input field
-    - UDP Port input field
-    - "Test Connection" button
-  - LED Configuration section
-    - LED count slider (1-300)
-    - Grid resolution dropdown (fixed at 10x10 for now)
-  - Appearance section
-    - Dark/Light theme toggle
-  - Calibration section
-    - "Reset TV Calibration" button (destructive style)
-  - About section
-    - App version
-    - Help/Instructions link
-
-**Safe Area Insets:**
-- Top: `Spacing.xl` (with standard header)
-- Bottom: `insets.bottom + Spacing.xl`
+- Header: Default with title "Cihazlar", right button (refresh/scan icon)
+- Main content: Scrollable list
+- Safe area:
+  - Top: `Spacing.xl`
+  - Bottom: `tabBarHeight + Spacing.xl`
 
 **Components:**
-- Form inputs with labels
-- Section headers (bold, uppercase, small)
-- Toggle switches
-- Buttons (primary, destructive)
+- **Scanning indicator** when searching for devices
+- **Device list cards** with:
+  - Device name and icon
+  - Signal strength indicator
+  - Connection status (Bağlı/Bağlı Değil)
+  - Connect/Disconnect button
+- **Empty state** when no devices found (illustration + "Tarama Başlat" button)
+- **Connected device card** (if connected) - highlighted with border, shows battery level if available
 
----
-
-### 4. ESP Configuration Screen
-**Purpose:** First-time setup or network configuration
+#### 3. Ayarlar (Settings Screen)
+**Purpose:** Configure app behavior and color detection parameters
 
 **Layout:**
-- **Header:** Standard navigation header
-  - Left: Back button
-  - Center: "ESP Setup"
-- **Main Content:** Scrollable form with centered content
-  - Step-by-step instructions
-  - IP address input (numeric keyboard)
-  - Port input (numeric keyboard)
-  - "Scan Network" button (searches for ESP devices)
-  - Connection status card (success/error state)
+- Header: Default with title "Ayarlar"
+- Main content: Scrollable form
+- Safe area:
+  - Top: `Spacing.xl`
+  - Bottom: `tabBarHeight + Spacing.xl`
 
-**Form Buttons:** Below form content, sticky to bottom
-- Submit: "Connect" button (primary, full-width)
-
-**Safe Area Insets:**
-- Top: `Spacing.xl`
-- Bottom: `insets.bottom + Spacing.xl`
-
----
+**Components:**
+- **Grouped settings sections:**
+  1. Renk Algılama (Color Detection)
+     - Hassasiyet slider (Sensitivity 1-10)
+     - Güncelleme Hızı slider (Update rate: 10fps - 60fps)
+     - Parlaklık ayarı toggle
+  2. Kamera
+     - Ön/Arka kamera seçimi
+     - Çözünürlük tercihi
+  3. Hakkında
+     - App version
+     - Tutorial button
+     - İletişim/Destek
 
 ## Design System
 
 ### Color Palette
-**Dark Theme (Primary):**
-- Background: `#0A0A0A` (true black)
-- Surface: `#1A1A1A` (elevated cards)
-- Primary: `#00FF88` (neon green - for active states, calibration borders)
-- Secondary: `#8B5CF6` (purple - for accents)
-- Error: `#FF4444`
-- Text Primary: `#FFFFFF`
-- Text Secondary: `#A0A0A0`
-- Border: `#2A2A2A`
+**Primary Colors:**
+- Background: `#0A0E14` (Dark blue-black)
+- Surface: `#151B23` (Elevated dark surface)
+- Accent: `#00D9FF` (Bright cyan - represents LED/tech)
+- Accent Secondary: `#7B61FF` (Purple for secondary actions)
 
-**Light Theme:**
-- Background: `#F5F5F5`
-- Surface: `#FFFFFF`
-- Primary: `#00CC6A` (darker green for light mode)
-- Secondary: `#7C3AED`
-- Error: `#DC2626`
-- Text Primary: `#0A0A0A`
-- Text Secondary: `#6B7280`
-- Border: `#E5E5E5`
+**Semantic Colors:**
+- Success: `#00E676` (Connected state)
+- Warning: `#FFB300` (Low signal)
+- Error: `#FF3D71` (Disconnected)
+- Text Primary: `#FFFFFF`
+- Text Secondary: `#8F9BB3`
+
+**Color Visualization:**
+- Use actual detected colors in the color bars
+- Add subtle glow effect to active color regions
 
 ### Typography
 - **Headers:** SF Pro Display (iOS) / Roboto (Android)
-  - H1: 32px, Bold
-  - H2: 24px, Semibold
-  - H3: 18px, Semibold
+  - Large Title: 34pt, Bold
+  - Title: 28pt, Semibold
+  - Headline: 17pt, Semibold
 - **Body:** SF Pro Text / Roboto
-  - Body: 16px, Regular
-  - Caption: 14px, Regular
-- **Buttons:** 16px, Medium
+  - Body: 17pt, Regular
+  - Caption: 12pt, Regular
+  - Button: 16pt, Semibold
 
-### Spacing
-- xs: 4px
-- sm: 8px
-- md: 12px
-- lg: 16px
-- xl: 24px
-- 2xl: 32px
+### Visual Design
 
----
+**Component Specifications:**
 
-## Interaction Design
+1. **Floating Action Button (Start/Stop):**
+   - Size: 72x72pt
+   - Border radius: 36pt
+   - Shadow (EXACT specs):
+     - shadowOffset: {width: 0, height: 2}
+     - shadowOpacity: 0.10
+     - shadowRadius: 2
+   - Active state: Pulsing glow animation
+   - Press feedback: Scale to 0.95
 
-### Touchable Feedback
-- **Buttons:** Scale down to 0.96 on press, with 0.7 opacity
-- **Floating Action Buttons:** 
-  - Shadow specifications:
-    - shadowOffset: { width: 0, height: 2 }
-    - shadowOpacity: 0.10
-    - shadowRadius: 2
-  - Elevation: 4 (Android)
-- **Corner Handles:** Scale to 1.2 when dragging, with neon green glow
-- **Toggle Switches:** System native switches (green when active)
+2. **Color Region Bars:**
+   - Height: 8pt each
+   - Horizontal arrangement with 4pt gap
+   - Smooth color transitions (500ms)
+   - Subtle inner shadow for depth
 
-### Animations
-- Calibration border: Animated dashed line (marching ants effect)
-- Grid overlay: Fade in/out (300ms ease)
-- Connection status: Pulse animation when connecting
-- Power toggle: Rotation animation (180° when toggling)
+3. **Device Cards:**
+   - Background: Surface color
+   - Border radius: 12pt
+   - Padding: 16pt
+   - Press feedback: Opacity 0.8
+   - NO drop shadow (flat design)
 
----
+4. **Status Indicators:**
+   - Pill-shaped chips
+   - Height: 28pt
+   - Border radius: 14pt
+   - Semi-transparent background
+   - Use semantic colors for states
 
-## Accessibility
+5. **Sliders:**
+   - Track height: 4pt
+   - Thumb size: 24x24pt
+   - Active thumb: 28x28pt
+   - Accent color for active track
 
-### Touch Targets
-- Minimum 44x44px for all interactive elements
-- Corner handles: 44x44px touch area (visual circle 32px)
-- Floating buttons: 56px diameter minimum
+### Icons
+- Use **Feather icons** from @expo/vector-icons
+- Icon sizes:
+  - Navigation: 24pt
+  - Cards: 20pt
+  - Status: 16pt
+- Icons: bluetooth, camera, settings, zap, wifi, power, sliders, refresh-cw
 
-### Visual Feedback
-- High contrast mode support
-- Clear focus states for screen readers
-- Haptic feedback on critical interactions (calibration save, power toggle)
+### Critical Assets
+**Generate 1 custom illustration:**
+- **Empty device state illustration** - Minimalist line art of a smartphone scanning for Bluetooth devices with radiating waves, using accent colors on dark background (size: 200x200pt)
 
-### Error States
-- Clear error messages for UDP connection failures
-- Visual indicator when ESP is unreachable
-- Calibration validation (prevent saving invalid shapes)
+**System Icons Only:**
+- Use Feather icons for all UI actions
+- No emoji usage
+- Camera permission placeholder: Use camera icon
 
----
+### Interaction Design
+- **Camera Preview:** Tap to focus
+- **Start/Stop Button:** 
+  - Haptic feedback on press
+  - Smooth color change on state toggle
+  - Disable when no device connected (show tooltip)
+- **Device Cards:** 
+  - Swipe left to forget device
+  - Tap to connect/disconnect
+- **Sliders:** Real-time preview of sensitivity changes
 
-## Assets Required
+### Accessibility
+- Minimum touch target: 44x44pt
+- Color contrast ratio: 4.5:1 for text
+- Support VoiceOver/TalkBack labels in Turkish
+- Haptic feedback for important actions
+- Camera permission explanations in Turkish
+- Bluetooth permission explanations in Turkish
 
-### Icons (Feather Icons from @expo/vector-icons)
-- `settings` - Settings button
-- `info` - Connection info
-- `target` - Calibration mode
-- `power` - LED sync toggle
-- `wifi` - Network status
-- `check` - Save/confirm
-- `x` - Cancel/close
-- `refresh-cw` - Reset calibration
-- `sliders` - LED configuration
-
-### Generated Assets
-**1 User Avatar Preset:**
-- Neon-themed geometric avatar with LED light aesthetic
-- Gradient colors (cyan to purple)
-- 200x200px PNG with transparent background
-- Style: Futuristic, tech-inspired circular design
-
-### No Additional Assets Needed
-- Use system camera interface
-- Grid overlay rendered programmatically (SVG)
-- Corner handles rendered as styled Views
-- All other UI elements use standard React Native components
+### Special Considerations
+- **Camera Performance:** Optimize color detection to run at selected FPS without lag
+- **Battery Indicator:** Show warning if intensive usage detected
+- **Connection State:** Always display current Bluetooth connection status
+- **Permissions Flow:** Guide users through camera and Bluetooth permissions with clear Turkish explanations
