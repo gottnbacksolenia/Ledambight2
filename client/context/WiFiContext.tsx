@@ -113,6 +113,7 @@ export function WiFiProvider({ children }: { children: ReactNode }) {
   const startScan = useCallback(async () => {
     console.log('startScan çağrıldı');
 
+    // Web için mock cihazlar
     if (Platform.OS === 'web') {
       setIsScanning(true);
       setDevices([]);
@@ -126,6 +127,29 @@ export function WiFiProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Native platformlarda UDP desteğini kontrol et
+    let dgram: any = null;
+    try {
+      dgram = require('react-native-udp');
+    } catch (error) {
+      console.log('react-native-udp yüklenemedi');
+    }
+
+    // Expo Go veya UDP desteklenmeyen platformlarda mock cihazlar göster
+    if (!dgram || !dgram.createSocket) {
+      console.log('UDP desteklenmiyor (Expo Go), mock cihazlar gösteriliyor');
+      setIsScanning(true);
+      setDevices([]);
+
+      setTimeout(() => {
+        setDevices(MOCK_DEVICES);
+        setIsScanning(false);
+      }, 1500);
+
+      return;
+    }
+
+    // Gerçek cihazlarda WiFi taraması
     const hasPermissions = await requestWiFiPermissions();
     if (!hasPermissions) {
       console.log("WiFi permissions not granted");
@@ -138,7 +162,6 @@ export function WiFiProvider({ children }: { children: ReactNode }) {
     try {
       console.log('Gerçek WiFi taraması başlatılıyor...');
 
-      const dgram = require('react-native-udp');
       const socket = dgram.createSocket('udp4');
 
       socket.bind(BROADCAST_PORT, () => {
