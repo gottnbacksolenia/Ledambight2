@@ -13,7 +13,7 @@ import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 
 export default function SettingsScreen() {
   const tabBarHeight = useBottomTabBarHeight();
-  const { settings, updateSettings, isLoading } = useSettings();
+  const { settings, updateSettings, resetCalibration, isLoading } = useSettings();
 
   if (isLoading) {
     return (
@@ -77,6 +77,24 @@ export default function SettingsScreen() {
             value={settings.cameraFacing === "back" ? "Arka" : "Ön"}
             onPress={toggleCameraFacing}
           />
+        </View>
+
+        <SectionHeader title="Kalibrasyon" />
+        <View style={styles.section}>
+          <SettingRow
+            label="TV Alanı Kalibrasyonu"
+            value={settings.isCalibrated ? "Kalibre edildi" : "Kalibre edilmedi"}
+            showArrow={false}
+          />
+          {settings.isCalibrated ? (
+            <Pressable
+              style={({ pressed }) => [styles.resetButton, pressed && styles.resetButtonPressed]}
+              onPress={resetCalibration}
+            >
+              <Feather name="refresh-cw" size={16} color={Colors.dark.error} />
+              <ThemedText style={styles.resetButtonText}>Kalibrasyonu Sıfırla</ThemedText>
+            </Pressable>
+          ) : null}
         </View>
 
         <SectionHeader title="Hakkında" />
@@ -159,5 +177,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.dark.textSecondary,
     lineHeight: 20,
+  },
+  resetButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.xs,
+    borderWidth: 1,
+    borderColor: Colors.dark.error,
+  },
+  resetButtonPressed: {
+    opacity: 0.7,
+  },
+  resetButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.dark.error,
   },
 });

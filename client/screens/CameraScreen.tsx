@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, StyleSheet, Platform, Linking, Pressable } from "react-native";
+import { View, StyleSheet, Platform, Linking, Pressable, useWindowDimensions } from "react-native";
 import { CameraView, useCameraPermissions, CameraType } from "expo-camera";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useHeaderHeight } from "@react-navigation/elements";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { ColorBar } from "@/components/ColorBar";
@@ -13,6 +15,9 @@ import { useSettings } from "@/context/SettingsContext";
 import { RegionColors, analyzeRegions } from "@/lib/colorAnalyzer";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
 import { Feather } from "@expo/vector-icons";
+import { RootStackParamList } from "@/navigation/RootStackNavigator";
+
+type CameraNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -29,6 +34,8 @@ export default function CameraScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const cameraRef = useRef<CameraView>(null);
+  const navigation = useNavigation<CameraNavigationProp>();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   
   const { connectedDevice, sendRegionColors } = useWiFi();
   const { settings } = useSettings();
@@ -69,7 +76,8 @@ export default function CameraScreen() {
           const newColors = analyzeRegions(
             imageData.data,
             canvas.width,
-            canvas.height
+            canvas.height,
+            settings.cropCorners
           );
           
           setColors(newColors);
@@ -89,7 +97,7 @@ export default function CameraScreen() {
         console.error("Error capturing frame:", error);
       }
     }, interval);
-  }, [settings.updateRate, connectedDevice, sendRegionColors]);
+  }, [settings.updateRate, settings.cropCorners, connectedDevice, sendRegionColors]);
 
   const stopColorAnalysis = useCallback(() => {
     if (intervalRef.current) {
@@ -216,16 +224,40 @@ export default function CameraScreen() {
                 </ThemedText>
               </View>
             )}
+
+            {settings.isCalibrated && settings.cropCorners ? (
+              <View style={styles.cropOverlayContainer} pointerEvents="none">
+                <View
+                  style={[
+                    styles.cropOverlay,
+                    {
+                      left: `${settings.cropCorners.topLeft.x * 100}%`,
+                      top: `${settings.cropCorners.topLeft.y * 100}%`,
+                      width: `${(settings.cropCorners.topRight.x - settings.cropCorners.topLeft.x) * 100}%`,
+                      height: `${(settings.cropCorners.bottomLeft.y - settings.cropCorners.topLeft.y) * 100}%`,
+                    },
+                  ]}
+                />
+              </View>
+            ) : null}
           </View>
         </CameraView>
       </View>
 
       <View style={[styles.fabContainer, { bottom: tabBarHeight + Spacing.xl }]}>
-        <FloatingActionButton
-          isActive={isActive}
-          onPress={handleToggle}
-          disabled={!connectedDevice}
-        />
+        <View style={styles.fabRow}>
+          <Pressable
+            style={({ pressed }) => [styles.calibrationButton, pressed && styles.buttonPressed]}
+            onPress={() => navigation.navigate("Calibration")}
+          >
+            <Feather name="crop" size={20} color={Colors.dark.text} />
+          </Pressable>
+          <FloatingActionButton
+            isActive={isActive}
+            onPress={handleToggle}
+            disabled={!connectedDevice}
+          />
+        </View>
         {!connectedDevice && (
           <ThemedText style={styles.fabHint}>
             Başlatmak için bir cihaz bağlayın
@@ -340,10 +372,39 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: "center",
   },
+  fabRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.lg,
+  },
+  calibrationButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.dark.backgroundSecondary,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.dark.accent,
+  },
   fabHint: {
     fontSize: 12,
     color: Colors.dark.textSecondary,
     marginTop: Spacing.sm,
     textAlign: "center",
+  },
+  cropOverlayContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  cropOverlay: {
+    position: "absolute",
+    borderWidth: 2,
+    borderColor: Colors.dark.accent,
+    borderStyle: "dashed",
+    backgroundColor: "transparent",
   },
 });

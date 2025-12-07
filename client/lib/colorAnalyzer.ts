@@ -57,53 +57,71 @@ export function getAverageColor(
   return rgbToHex(r / count, g / count, b / count);
 }
 
+export interface CropCorners {
+  topLeft: { x: number; y: number };
+  topRight: { x: number; y: number };
+  bottomLeft: { x: number; y: number };
+  bottomRight: { x: number; y: number };
+}
+
 export function analyzeRegions(
   imageData: Uint8Array,
   width: number,
-  height: number
+  height: number,
+  cropCorners?: CropCorners | null
 ): RegionColors {
-  // Philips Ambilight tarzı - ekranın kenarlarından renk algılama
-  // Kenar bölgelerini %10 kalınlığında ve geniş alandan örnekle
-  const edgeThickness = Math.floor(Math.min(width, height) * 0.1);
+  let cropX = 0;
+  let cropY = 0;
+  let cropWidth = width;
+  let cropHeight = height;
+
+  if (cropCorners) {
+    const minX = Math.min(cropCorners.topLeft.x, cropCorners.bottomLeft.x);
+    const maxX = Math.max(cropCorners.topRight.x, cropCorners.bottomRight.x);
+    const minY = Math.min(cropCorners.topLeft.y, cropCorners.topRight.y);
+    const maxY = Math.max(cropCorners.bottomLeft.y, cropCorners.bottomRight.y);
+
+    cropX = Math.floor(minX * width);
+    cropY = Math.floor(minY * height);
+    cropWidth = Math.floor((maxX - minX) * width);
+    cropHeight = Math.floor((maxY - minY) * height);
+  }
+
+  const edgeThickness = Math.floor(Math.min(cropWidth, cropHeight) * 0.1);
   
-  // Üst kenar - ekranın üst %10'luk kısmından, genişliğin %80'ini kapsayacak şekilde
   const top = getAverageColor(imageData, width, height, {
-    x: width * 0.1,
-    y: 0,
-    width: width * 0.8,
+    x: cropX + cropWidth * 0.1,
+    y: cropY,
+    width: cropWidth * 0.8,
     height: edgeThickness,
   });
 
-  // Alt kenar - ekranın alt %10'luk kısmından, genişliğin %80'ini kapsayacak şekilde
   const bottom = getAverageColor(imageData, width, height, {
-    x: width * 0.1,
-    y: height - edgeThickness,
-    width: width * 0.8,
+    x: cropX + cropWidth * 0.1,
+    y: cropY + cropHeight - edgeThickness,
+    width: cropWidth * 0.8,
     height: edgeThickness,
   });
 
-  // Sol kenar - ekranın sol %10'luk kısmından, yüksekliğin %80'ini kapsayacak şekilde
   const left = getAverageColor(imageData, width, height, {
-    x: 0,
-    y: height * 0.1,
+    x: cropX,
+    y: cropY + cropHeight * 0.1,
     width: edgeThickness,
-    height: height * 0.8,
+    height: cropHeight * 0.8,
   });
 
-  // Sağ kenar - ekranın sağ %10'luk kısmından, yüksekliğin %80'ini kapsayacak şekilde
   const right = getAverageColor(imageData, width, height, {
-    x: width - edgeThickness,
-    y: height * 0.1,
+    x: cropX + cropWidth - edgeThickness,
+    y: cropY + cropHeight * 0.1,
     width: edgeThickness,
-    height: height * 0.8,
+    height: cropHeight * 0.8,
   });
 
-  // Dominant renk - tüm ekranın ortalaması
   const dominant = getAverageColor(imageData, width, height, {
-    x: 0,
-    y: 0,
-    width: width,
-    height: height,
+    x: cropX,
+    y: cropY,
+    width: cropWidth,
+    height: cropHeight,
   });
 
   return { top, right, bottom, left, dominant };
