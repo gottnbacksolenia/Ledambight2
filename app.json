@@ -60,14 +60,6 @@
         {
           "cameraPermission": "Kamera, ekrandaki renkleri algılamak için kullanılır."
         }
-      ],
-      [
-        "react-native-ble-plx",
-        {
-          "isBackgroundEnabled": false,
-          "modes": [],
-          "bluetoothAlwaysPermission": "Bluetooth, LED cihazlarla bağlantı kurmak için kullanılır."
-        }
       ]
     ],
     "experiments": {
