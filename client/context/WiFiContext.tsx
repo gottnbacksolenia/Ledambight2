@@ -1,8 +1,15 @@
 
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from "react";
 import { Platform, PermissionsAndroid } from "react-native";
-import dgram from 'react-native-udp';
-import WifiManager from "react-native-wifi-reborn";
+
+// Platform bazlı import
+let dgram: any = null;
+let WifiManager: any = null;
+
+if (Platform.OS !== 'web') {
+  dgram = require('react-native-udp');
+  WifiManager = require('react-native-wifi-reborn').default;
+}
 
 export interface WiFiDevice {
   id: string;
@@ -31,6 +38,26 @@ const WiFiContext = createContext<WiFiContextType | undefined>(undefined);
 // ESP cihazları için standart UDP portu
 const ESP_UDP_PORT = 7777;
 const BROADCAST_PORT = 7778;
+
+// Mock cihazlar (web için)
+const MOCK_DEVICES: WiFiDevice[] = [
+  {
+    id: "mock-1",
+    name: "ESP LED Test (Mock)",
+    ipAddress: "192.168.1.100",
+    port: ESP_UDP_PORT,
+    rssi: -45,
+    isConnected: false,
+  },
+  {
+    id: "mock-2",
+    name: "ESP LED Living Room (Mock)",
+    ipAddress: "192.168.1.101",
+    port: ESP_UDP_PORT,
+    rssi: -62,
+    isConnected: false,
+  },
+];
 
 export function WiFiProvider({ children }: { children: ReactNode }) {
   const [devices, setDevices] = useState<WiFiDevice[]>([]);
@@ -94,7 +121,22 @@ export function WiFiProvider({ children }: { children: ReactNode }) {
   const startScan = useCallback(async () => {
     console.log('startScan çağrıldı');
     
-    // İzinleri kontrol et
+    // Web platformu için mock veriler kullan
+    if (Platform.OS === 'web') {
+      setIsScanning(true);
+      setDevices([]);
+      
+      // Mock tarama simülasyonu
+      setTimeout(() => {
+        console.log('Mock cihazlar yükleniyor...');
+        setDevices(MOCK_DEVICES);
+        setIsScanning(false);
+      }, 1500);
+      
+      return;
+    }
+
+    // Mobil platformlar için gerçek WiFi taraması
     const hasPermissions = await requestWiFiPermissions();
     if (!hasPermissions) {
       console.log("WiFi permissions not granted");
@@ -102,7 +144,7 @@ export function WiFiProvider({ children }: { children: ReactNode }) {
     }
 
     setIsScanning(true);
-    setDevices([]); // Önceki cihazları temizle
+    setDevices([]);
 
     try {
       console.log('Gerçek WiFi taraması başlatılıyor...');
@@ -114,7 +156,7 @@ export function WiFiProvider({ children }: { children: ReactNode }) {
         socket.setBroadcast(true);
         console.log(`UDP socket ${BROADCAST_PORT} portunda dinlemeye başladı`);
         
-        // Her 3 saniyede bir discovery mesajı gönder (gerçek zamanlı tarama)
+        // Her 3 saniyede bir discovery mesajı gönder
         const sendDiscovery = () => {
           const discoveryMessage = Buffer.from('ESP_LED_DISCOVERY');
           socket.send(
@@ -123,7 +165,7 @@ export function WiFiProvider({ children }: { children: ReactNode }) {
             discoveryMessage.length,
             BROADCAST_PORT,
             '255.255.255.255',
-            (err) => {
+            (err: Error) => {
               if (err) console.error('Broadcast error:', err);
               else console.log('Discovery broadcast mesajı gönderildi');
             }
@@ -162,10 +204,8 @@ export function WiFiProvider({ children }: { children: ReactNode }) {
             };
 
             setDevices((prev) => {
-              // Cihazı güncelle veya ekle
               const existingIndex = prev.findIndex((d) => d.ipAddress === newDevice.ipAddress);
               if (existingIndex >= 0) {
-                // Mevcut cihazı güncelle (RSSI değişmiş olabilir)
                 const updated = [...prev];
                 updated[existingIndex] = { ...updated[existingIndex], rssi: newDevice.rssi };
                 return updated;
@@ -198,7 +238,18 @@ export function WiFiProvider({ children }: { children: ReactNode }) {
     try {
       console.log(`ESP cihazına bağlanılıyor: ${device.name} (${device.ipAddress}:${device.port})`);
       
-      // UDP socket oluştur
+      // Web platformu için mock bağlantı
+      if (Platform.OS === 'web') {
+        console.log(`Mock bağlantı kuruldu: ${device.name}`);
+        const updatedDevice = { ...device, isConnected: true };
+        setConnectedDevice(updatedDevice);
+        setDevices((prev) =>
+          prev.map((d) => (d.id === device.id ? updatedDevice : { ...d, isConnected: false }))
+        );
+        return;
+      }
+
+      // Mobil platformlar için gerçek UDP bağlantısı
       const socket = dgram.createSocket('udp4');
       
       socket.bind(() => {
@@ -223,7 +274,7 @@ export function WiFiProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const disconnectDevice = useCallback(() => {
-    if (udpSocket) {
+    if (Platform.OS !== 'web' && udpSocket) {
       try {
         udpSocket.close();
         setUdpSocket(null);
@@ -241,16 +292,26 @@ export function WiFiProvider({ children }: { children: ReactNode }) {
   }, [connectedDevice, udpSocket]);
 
   const sendColor = useCallback((color: string) => {
-    if (!connectedDevice || !udpSocket) {
-      console.log('Bağlı cihaz yok veya socket açık değil');
+    if (!connectedDevice) {
+      console.log('Bağlı cihaz yok');
+      return;
+    }
+
+    const [r, g, b] = hexToRgbBytes(color);
+
+    // Web platformu için mock gönderme
+    if (Platform.OS === 'web') {
+      console.log(`[MOCK] Renk gönderildi RGB(${r}, ${g}, ${b}) -> ${connectedDevice.name}`);
+      return;
+    }
+
+    // Mobil platformlar için gerçek UDP gönderimi
+    if (!udpSocket) {
+      console.log('Socket açık değil');
       return;
     }
 
     try {
-      const [r, g, b] = hexToRgbBytes(color);
-      
-      // UDP paketi: [CMD_TYPE(1), R(1), G(1), B(1)]
-      // CMD_TYPE: 0 = single color
       const packet = Buffer.from([0, r, g, b]);
       
       udpSocket.send(
@@ -274,22 +335,31 @@ export function WiFiProvider({ children }: { children: ReactNode }) {
 
   const sendRegionColors = useCallback(
     (colors: { top: string; right: string; bottom: string; left: string }) => {
-      if (!connectedDevice || !udpSocket) {
-        console.log('Bağlı cihaz yok veya socket açık değil');
+      if (!connectedDevice) {
+        console.log('Bağlı cihaz yok');
+        return;
+      }
+
+      const regions = [colors.top, colors.right, colors.bottom, colors.left];
+      const rgbValues: number[] = [];
+      
+      for (const color of regions) {
+        rgbValues.push(...hexToRgbBytes(color));
+      }
+
+      // Web platformu için mock gönderme
+      if (Platform.OS === 'web') {
+        console.log(`[MOCK] Bölge renkleri gönderildi -> ${connectedDevice.name}`, colors);
+        return;
+      }
+
+      // Mobil platformlar için gerçek UDP gönderimi
+      if (!udpSocket) {
+        console.log('Socket açık değil');
         return;
       }
 
       try {
-        // Her bölge için renk al
-        const regions = [colors.top, colors.right, colors.bottom, colors.left];
-        const rgbValues: number[] = [];
-        
-        for (const color of regions) {
-          rgbValues.push(...hexToRgbBytes(color));
-        }
-        
-        // UDP paketi: [CMD_TYPE(1), TOP_R, TOP_G, TOP_B, RIGHT_R, RIGHT_G, RIGHT_B, BOTTOM_R, BOTTOM_G, BOTTOM_B, LEFT_R, LEFT_G, LEFT_B]
-        // CMD_TYPE: 1 = region colors (total 13 bytes)
         const packet = Buffer.from([1, ...rgbValues]);
         
         udpSocket.send(
